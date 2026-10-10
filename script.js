@@ -1,5 +1,9 @@
 const KEY = "satJourneyUserV1";
 
+const SUPABASE_URL = "https://kgvntfhbzuwhspkowbwr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_BjyBIUBxs20wE_EBtgZVYA_Rvv6Pb6r";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const questions = [
   {
     subject: "Reading & Writing",
