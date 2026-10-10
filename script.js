@@ -1,3 +1,14 @@
+
+window.onerror = function(message, source, line, column) {
+  document.getElementById("app").innerHTML =
+    `<div style="padding:24px;font-family:Arial;color:#b91c1c">
+      <h2>SAT Journey error</h2>
+      <p>${message}</p>
+      <p>Line: ${line}</p>
+    </div>`;
+  return false;
+};
+
 const KEY = "satJourneyUserV1";
 
 const SUPABASE_URL = "https://kgvntfhbzuwhspkowbwr.supabase.co";
