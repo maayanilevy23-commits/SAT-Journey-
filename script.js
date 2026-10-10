@@ -78,12 +78,151 @@ function loadUser() {
     return raw ? {...defaultUser(), ...JSON.parse(raw)} : null;
   } catch { return null; }
 }
-function saveUser() { localStorage.setItem(KEY, JSON.stringify(user)); }
+function saveUser() {
+  localStorage.setItem(KEY, JSON.stringify(user));
+
+  if (!currentAuthUser || !user) return;
+
+  supabase
+    .from("student_journeys")
+    .upsert(
+      {
+        user_id: currentAuthUser.id,
+        data: user,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "user_id" }
+    )
+    .then(({ error }) => {
+      if (error) {
+        console.error("Cloud save failed:", error.message);
+      } else {
+        console.log("SAT Journey saved to the cloud.");
+      }
+    });
+}
 let user = loadUser();
 let currentPage = "dashboard";
 let qIndex = 0;
 let answeredCurrent = false;
 
+let currentAuthUser = null;
+
+function authScreen(message = "") {
+  document.getElementById("app").innerHTML = `
+    <div style="max-width:420px;margin:60px auto;padding:24px;
+                font-family:Arial,sans-serif;">
+      <h1>SAT Journey</h1>
+      <h2>Welcome back!</h2>
+      <p>Sign in to save your SAT progress to your account.</p>
+
+      <form id="loginForm">
+        <label for="authEmail">Email</label>
+        <input id="authEmail" type="email" required
+          autocomplete="email"
+          style="display:block;width:100%;box-sizing:border-box;
+                 padding:12px;margin:8px 0 16px;">
+
+        <label for="authPassword">Password</label>
+        <input id="authPassword" type="password" required
+          minlength="6" autocomplete="current-password"
+          style="display:block;width:100%;box-sizing:border-box;
+                 padding:12px;margin:8px 0 16px;">
+
+        <button type="submit" style="padding:12px;width:100%;">
+          Sign in
+        </button>
+      </form>
+
+      <button id="signupButton"
+        style="padding:12px;width:100%;margin-top:12px;">
+        Create account
+      </button>
+
+      <p id="authMessage" style="margin-top:16px;color:#444;">
+        ${message}
+      </p>
+    </div>
+  `;
+
+  document.getElementById("loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const status = document.getElementById("authMessage");
+
+    status.textContent = "Signing in…";
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      status.textContent = error.message;
+      return;
+    }
+
+    currentAuthUser = data.user;
+status.textContent = "Loading your saved SAT Journey…";
+
+const { data: journey, error: loadError } = await supabase
+  .from("student_journeys")
+  .select("data")
+  .eq("user_id", currentAuthUser.id)
+  .maybeSingle();
+
+if (loadError) {
+  status.textContent = "Couldn't load your saved journey. Please try again.";
+  console.error(loadError.message);
+  return;
+}
+
+if (journey && journey.data) {
+  user = journey.data;
+  localStorage.setItem(KEY, JSON.stringify(user));
+  renderApp();
+} else {
+  user = null;
+  setupScreen();
+} });
+
+  document.getElementById("signupButton").addEventListener("click", async () => {
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+    const status = document.getElementById("authMessage");
+
+    if (!email || password.length < 6) {
+      status.textContent = "Enter your email and a password of at least 6 characters.";
+      return;
+    }
+
+    status.textContent = "Creating your account…";
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin + window.location.pathname
+      }
+    });
+
+    if (error) {
+      status.textContent = error.message;
+      return;
+    }
+
+    if (data.session) {
+  currentAuthUser = data.user;
+  user = null;
+  setupScreen();
+} else {
+  status.textContent =
+    "Check your email for a confirmation link. Then return here and sign in.";
+}
+});
+}
 function setupScreen() {
   document.getElementById("app").innerHTML = `
     <main class="setup">
@@ -150,8 +289,18 @@ function renderApp() {
         <button class="${currentPage==="plan"?"active":""}" onclick="go('plan')">☷ <span>Study Plan</span></button>
         <button class="${currentPage==="progress"?"active":""}" onclick="go('progress')">↗ <span>Progress</span></button>
         <button class="${currentPage==="settings"?"active":""}" onclick="go('settings')">⚙ <span>Settings</span></button>
-      </nav>
-      <div class="sidebar-bottom"><button class="nav" style="border:0;background:transparent;color:#64748b" onclick="resetJourney()">Reset journey</button></div>
+           </nav>
+      <div class="sidebar-bottom">
+        <button class="nav" style="border:0;background:transparent;color:#64748b" onclick="resetJourney()">Reset journey</button>
+        <button class="nav" style="border:0;background:transparent;color:#64748b" onclick="signOut()">Sign out</button>
+      </div>
+    </aside>
+    <main class="main">
+<button class="nav" style="border:0;background:transparent;color:#64748b" onclick="resetJourney()">Reset journey</button>
+<button class="nav" style="border:0;background:transparent;color:#64748b" onclick="signOut()">Sign out</button>
+```
+  <button class="nav" style="border:0;background:transparent;color:#64748b" onclick="signOut()">Sign out</button>
+</div>
     </aside>
     <main class="main">
       <div class="topbar"><h2>${pageTitle()}</h2><div class="user-pill">${escapeHtml(user.name)}</div></div>
@@ -285,10 +434,56 @@ function saveSettings() {
   saveUser(); renderApp();
 }
 function go(page) { currentPage=page; answeredCurrent=false; renderApp(); }
+async function signOut() {
+  await supabase.auth.signOut();
+  currentAuthUser = null;
+  user = null;
+  localStorage.removeItem(KEY);
+  authScreen("You've signed out.");
+}
 function resetJourney() {
   if (confirm("Reset this SAT Journey on this browser?")) { localStorage.removeItem(KEY); user=null; setupScreen(); }
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
 function escapeAttr(s) { return escapeHtml(s).replace(/`/g,'&#096;'); }
 
-if (user) renderApp(); else setupScreen();
+async function startApp() {
+  const { data, error } = await supabase.auth.getSession();
+
+  if (error) {
+    authScreen("Could not check your login. Please refresh and try again.");
+    return;
+  }
+
+  if (!data.session) {
+    currentAuthUser = null;
+    user = null;
+    authScreen();
+    return;
+  }
+
+  currentAuthUser = data.session.user;
+
+  const { data: journey, error: loadError } = await supabase
+    .from("student_journeys")
+    .select("data")
+    .eq("user_id", currentAuthUser.id)
+    .maybeSingle();
+
+  if (loadError) {
+    authScreen("Couldn't load your saved journey. Please refresh and try again.");
+    console.error(loadError.message);
+    return;
+  }
+
+  if (journey && journey.data) {
+    user = { ...defaultUser(), ...journey.data };
+    localStorage.setItem(KEY, JSON.stringify(user));
+    renderApp();
+  } else {
+    user = null;
+    setupScreen();
+  }
+}
+
+startApp();
