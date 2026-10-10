@@ -242,8 +242,7 @@ function setupScreen() {
           <div class="field"><label>SAT test date (optional)</label><input id="s-date" type="date"></div>
         </div>
         <button class="primary full" onclick="createJourney()">Start my SAT Journey</button>
-        <div class="small-note">Your data is stored in this browser for this first version. This demo does not connect to College Board or collect passwords.</div>
-      </section>
+<div class="small-note">Your SAT Journey is saved to your account. This demo does not connect to College Board.</div>      </section>
     </main>`;
 }
 
@@ -278,6 +277,7 @@ function daysUntil() {
   return Math.ceil((d - new Date()) / 86400000);
 }
 
+
 function renderApp() {
   document.getElementById("app").innerHTML = `
   <div class="shell">
@@ -289,18 +289,11 @@ function renderApp() {
         <button class="${currentPage==="plan"?"active":""}" onclick="go('plan')">☷ <span>Study Plan</span></button>
         <button class="${currentPage==="progress"?"active":""}" onclick="go('progress')">↗ <span>Progress</span></button>
         <button class="${currentPage==="settings"?"active":""}" onclick="go('settings')">⚙ <span>Settings</span></button>
-           </nav>
+      </nav>
       <div class="sidebar-bottom">
         <button class="nav" style="border:0;background:transparent;color:#64748b" onclick="resetJourney()">Reset journey</button>
         <button class="nav" style="border:0;background:transparent;color:#64748b" onclick="signOut()">Sign out</button>
       </div>
-    </aside>
-    <main class="main">
-<button class="nav" style="border:0;background:transparent;color:#64748b" onclick="resetJourney()">Reset journey</button>
-<button class="nav" style="border:0;background:transparent;color:#64748b" onclick="signOut()">Sign out</button>
-```
-  <button class="nav" style="border:0;background:transparent;color:#64748b" onclick="signOut()">Sign out</button>
-</div>
     </aside>
     <main class="main">
       <div class="topbar"><h2>${pageTitle()}</h2><div class="user-pill">${escapeHtml(user.name)}</div></div>
@@ -314,6 +307,7 @@ function renderApp() {
 }
 
 function pageTitle() {
+
   return {dashboard:"Dashboard",practice:"Practice",plan:"Study Plan",progress:"Progress",settings:"Settings"}[currentPage];
 }
 function dashboardHTML() {
