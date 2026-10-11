@@ -13,7 +13,7 @@ const KEY = "satJourneyUserV1";
 
 const SUPABASE_URL = "https://kgvntfhbzuwhspkowbwr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_BjyBIUBxs20wE_EBtgZVYA_Rvv6Pb6r";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const questions = [
   {
@@ -94,7 +94,7 @@ function saveUser() {
 
   if (!currentAuthUser || !user) return;
 
-  supabase
+  supabaseClient
     .from("student_journeys")
     .upsert(
       {
@@ -165,7 +165,7 @@ function authScreen(message = "") {
 
     status.textContent = "Signing in…";
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password
     });
@@ -178,7 +178,7 @@ function authScreen(message = "") {
     currentAuthUser = data.user;
 status.textContent = "Loading your saved SAT Journey…";
 
-const { data: journey, error: loadError } = await supabase
+const { data: journey, error: loadError } = await supabaseClient
   .from("student_journeys")
   .select("data")
   .eq("user_id", currentAuthUser.id)
@@ -211,7 +211,7 @@ if (journey && journey.data) {
 
     status.textContent = "Creating your account…";
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email,
       password,
       options: {
@@ -440,7 +440,7 @@ function saveSettings() {
 }
 function go(page) { currentPage=page; answeredCurrent=false; renderApp(); }
 async function signOut() {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   currentAuthUser = null;
   user = null;
   localStorage.removeItem(KEY);
@@ -453,7 +453,7 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;'
 function escapeAttr(s) { return escapeHtml(s).replace(/`/g,'&#096;'); }
 
 async function startApp() {
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await supabaseClient.auth.getSession();
 
   if (error) {
     authScreen("Could not check your login. Please refresh and try again.");
@@ -469,7 +469,7 @@ async function startApp() {
 
   currentAuthUser = data.session.user;
 
-  const { data: journey, error: loadError } = await supabase
+  const { data: journey, error: loadError } = await supabaseClient
     .from("student_journeys")
     .select("data")
     .eq("user_id", currentAuthUser.id)
