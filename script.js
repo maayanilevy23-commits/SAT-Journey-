@@ -143,9 +143,17 @@ function authScreen(message = "") {
         <button type="submit" style="padding:12px;width:100%;">
           Sign in
         </button>
+     
       </form>
 
+      <button id="forgotPasswordButton"
+        type="button"
+        style="padding:12px;width:100%;margin-top:12px;">
+        Forgot password?
+      </button>
+
       <button id="signupButton"
+
         style="padding:12px;width:100%;margin-top:12px;">
         Create account
       </button>
@@ -198,6 +206,27 @@ if (journey && journey.data) {
   user = null;
   setupScreen();
 } });
+
+  
+  document.getElementById("forgotPasswordButton").addEventListener("click", async () => {
+    const email = document.getElementById("authEmail").value.trim();
+    const status = document.getElementById("authMessage");
+
+    if (!email) {
+      status.textContent = "Enter your email address first.";
+      return;
+    }
+
+    status.textContent = "Sending password reset email…";
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+
+    status.textContent = error
+      ? error.message
+      : "If an account exists for this email, a password reset link will be sent. Check your inbox and spam folder.";
+  });
 
   document.getElementById("signupButton").addEventListener("click", async () => {
     const email = document.getElementById("authEmail").value.trim();
@@ -452,8 +481,77 @@ function resetJourney() {
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
 function escapeAttr(s) { return escapeHtml(s).replace(/`/g,'&#096;'); }
 
+
+function passwordResetScreen() {
+  document.getElementById("app").innerHTML = `
+    <div style="max-width:420px;margin:60px auto;padding:24px;font-family:Arial,sans-serif;">
+      <h1>SAT Journey</h1>
+      <h2>Choose a new password</h2>
+      <p>Enter your new password below.</p>
+
+      <form id="resetPasswordForm">
+        <label for="newPassword">New password</label>
+        <input
+          id="newPassword"
+          type="password"
+          minlength="6"
+          required
+          autocomplete="new-password"
+          style="display:block;width:100%;box-sizing:border-box;padding:12px;margin:8px 0 16px;"
+        >
+
+        <label for="confirmPassword">Confirm new password</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          minlength="6"
+          required
+          autocomplete="new-password"
+          style="display:block;width:100%;box-sizing:border-box;padding:12px;margin:8px 0 16px;"
+        >
+
+        <button type="submit" style="padding:12px;width:100%;">
+          Save new password
+        </button>
+      </form>
+
+      <p id="resetMessage" style="margin-top:16px;"></p>
+    </div>
+  `;
+
+  document.getElementById("resetPasswordForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const password = document.getElementById("newPassword").value;
+    const confirmPassword = document.getElementById("confirmPassword").value;
+    const status = document.getElementById("resetMessage");
+
+    if (password !== confirmPassword) {
+      status.textContent = "The passwords don't match. Please try again.";
+      return;
+    }
+
+    status.textContent = "Saving your new password…";
+
+    const { error } = await supabaseClient.auth.updateUser({
+      password: password
+    });
+
+    if (error) {
+      status.textContent = error.message;
+      return;
+    }
+
+    status.textContent = "Password updated! You can now sign in with your new password.";
+  });
+}
 async function startApp() {
   const { data, error } = await supabaseClient.auth.getSession();
+
+  if (window.location.hash.includes("type=recovery")) {
+    passwordResetScreen();
+    return;
+  }
 
   if (error) {
     authScreen("Could not check your login. Please refresh and try again.");
